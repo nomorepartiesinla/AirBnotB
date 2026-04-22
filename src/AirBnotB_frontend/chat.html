@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AirBnotB Chat</title>
+    
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    
+    <!-- Vue & Axios -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    
+    <style>
+        body {
+            background: #f5f5f5;
+            height: 100vh;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+
+        .chat-wrapper {
+            height: 100vh;
+            display: flex;
+            padding: 0;
+        }
+
+        /* Sidebar Chat List */
+        .chat-sidebar {
+            width: 350px;
+            background: white;
+            border-right: 1px solid #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sidebar-header {
+            background: white;
+            color: #1a1a1a;
+            padding: 20px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .sidebar-header h2 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+
+        .chat-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .chat-list-item {
+            padding: 16px 20px;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+            transition: background 0.2s;
+            position: relative;
+        }
+
+        .chat-list-item:hover {
+            background: #f8f8f8;
+        }
+
+        .chat-list-item.active {
+            background: #f0f0f0;
+            border-left: 3px solid #1a1a1a;
+        }
+
+        .chat-list-item .chat-title {
+            font-weight: 500;
+            color: #1a1a1a;
+            margin-bottom: 4px;
+            font-size: 15px;
+        }
+
+        .chat-list-item .chat-dates {
+            font-size: 13px;
+            color: #666;
+        }
+
+        .new-msg-badge {
+            position: absolute;
+            top: 18px;
+            right: 20px;
+            width: 10px;
+            height: 10px;
+            background: #ff385c;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Main Chat Area */
+        .chat-main {
+            flex: 1;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            background: white;
+            color: #1a1a1a;
+            padding: 20px 30px;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chat-header h3 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+
+        .chat-header small {
+            color: #666;
+            font-size: 13px;
+        }
+
+        .loading-indicator {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .loading-indicator i {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Messages Area */
+        .messages-container {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+            background: #fafafa;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .message-wrapper {
+            display: flex;
+            align-items: flex-end;
+            gap: 10px;
+        }
+
+        .message-wrapper.sent {
+            flex-direction: row-reverse;
+        }
+
+        .message-bubble {
+            max-width: 60%;
+            padding: 10px 14px;
+            border-radius: 16px;
+            position: relative;
+        }
+
+        .message-wrapper.sent .message-bubble {
+            background: #1a1a1a;
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message-wrapper.received .message-bubble {
+            background: white;
+            color: #1a1a1a;
+            border: 1px solid #e0e0e0;
+            border-bottom-left-radius: 4px;
+        }
+
+        .message-wrapper.sending .message-bubble {
+            opacity: 0.6;
+        }
+
+        .message-sender {
+            font-size: 11px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .message-wrapper.sent .message-sender {
+            color: rgba(255,255,255,0.7);
+        }
+
+        .message-wrapper.received .message-sender {
+            color: #666;
+        }
+
+        .message-text {
+            margin: 0;
+            line-height: 1.4;
+            word-wrap: break-word;
+            font-size: 14px;
+        }
+
+        .message-time {
+            font-size: 10px;
+            margin-top: 4px;
+            display: block;
+        }
+
+        .message-wrapper.sent .message-time {
+            color: rgba(255,255,255,0.6);
+            text-align: right;
+        }
+
+        .message-wrapper.received .message-time {
+            color: #999;
+        }
+
+        /* Input Area */
+        .chat-input-area {
+            padding: 20px 30px;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .input-group-custom {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .input-group-custom input {
+            flex: 1;
+            padding: 12px 18px;
+            border: 1px solid #e0e0e0;
+            border-radius: 24px;
+            font-size: 14px;
+            transition: all 0.2s;
+            background: #fafafa;
+        }
+
+        .input-group-custom input:focus {
+            outline: none;
+            border-color: #1a1a1a;
+            background: white;
+        }
+
+        .input-group-custom input:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-send {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: #1a1a1a;
+            border: none;
+            color: white;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-send:hover:not(:disabled) {
+            background: #333;
+            transform: scale(1.05);
+        }
+
+        .btn-send:active:not(:disabled) {
+            transform: scale(0.95);
+        }
+
+        .btn-send:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Empty State */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #999;
+            background: #fafafa;
+        }
+
+        .empty-state i {
+            font-size: 60px;
+            margin-bottom: 16px;
+            color: #ddd;
+        }
+
+        .empty-state h4 {
+            font-size: 16px;
+            font-weight: 500;
+            color: #666;
+        }
+
+        /* Loading State */
+        .loading-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #999;
+        }
+
+        .loading-state i {
+            font-size: 40px;
+            margin-bottom: 16px;
+            animation: spin 1s linear infinite;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #ddd;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #ccc;
+        }
+
+        /* Toast */
+        .toast-container {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toast {
+            background: #1a1a1a;
+            color: white;
+            padding: 14px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            animation: slideIn 0.3s;
+            font-size: 14px;
+            min-width: 250px;
+        }
+
+        .toast.error {
+            background: #ff385c;
+        }
+
+        .toast.success {
+            background: #00a699;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(400px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+<div id="app">
+    <div class="chat-wrapper">
+        
+        <!-- Sidebar -->
+        <div class="chat-sidebar">
+            <div class="sidebar-header">
+                <h2>Messaggi</h2>
+            </div>
+            <ul class="chat-list" v-if="!loadingThreads && threads.length > 0">
+                <li v-for="chat in threads" 
+                    :key="chat.bookingId"
+                    class="chat-list-item"
+                    :class="{active: currentThread && currentThread.bookingId === chat.bookingId}"
+                    @click="selectThread(chat)">
+                    <div class="chat-title">{{ chat.listingName }}</div>
+                    <div class="chat-dates">{{ chat.checkIn }} → {{ chat.checkOut }}</div>
+                    <span v-if="chat.hasNewMessages" class="new-msg-badge"></span>
+                </li>
+            </ul>
+            <div v-else-if="loadingThreads" class="loading-state">
+                <i class="bi bi-arrow-clockwise"></i>
+                <p>Caricamento chat...</p>
+            </div>
+            <div v-else class="empty-state">
+                <i class="bi bi-inbox"></i>
+                <h4>Nessuna chat disponibile</h4>
+            </div>
+        </div>
+
+        <!-- Main Chat Area -->
+        <div class="chat-main" v-if="currentThread">
+            <div class="chat-header">
+                <div>
+                    <h3>{{ currentThread.listingName }}</h3>
+                    <small>{{ currentThread.checkIn }} → {{ currentThread.checkOut }}</small>
+                </div>
+                <div v-if="isLoadingMessages" class="loading-indicator">
+                    <i class="bi bi-arrow-clockwise"></i> Aggiornamento...
+                </div>
+            </div>
+
+            <div class="messages-container" ref="messagesBox">
+                <div v-for="msg in currentMessages" 
+                     :key="msg.id" 
+                     class="message-wrapper"
+                     :class="[msg.isMine ? 'sent' : 'received', msg.sending ? 'sending' : '']">
+                    <div class="message-bubble">
+                        <div class="message-sender">{{ msg.senderName }}</div>
+                        <div class="message-text">{{ msg.message }}</div>
+                        <span class="message-time">
+                            {{ msg.sentTime }}
+                            <i v-if="msg.sending" class="bi bi-clock ms-1"></i>
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chat-input-area">
+                <div class="input-group-custom">
+                    <input 
+                        v-model="newMessage" 
+                        placeholder="Scrivi un messaggio..." 
+                        @keyup.enter="sendMessage"
+                        :disabled="isSending"
+                        class="form-control"
+                        autofocus>
+                    <button @click="sendMessage" class="btn-send" :disabled="isSending || !newMessage.trim()">
+                        <i class="bi" :class="isSending ? 'bi-arrow-clockwise' : 'bi-send-fill'"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Empty State -->
+        <div class="chat-main" v-else-if="!loadingThreads">
+            <div class="empty-state">
+                <i class="bi bi-chat-square-dots"></i>
+                <h4>Seleziona una chat per iniziare</h4>
+            </div>
+        </div>
+
+        <!-- Loading State -->
+        <div class="chat-main" v-else>
+            <div class="loading-state">
+                <i class="bi bi-arrow-clockwise"></i>
+                <p>Caricamento...</p>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Toasts -->
+    <div class="toast-container">
+        <div v-for="toast in toasts" :key="toast.id" class="toast" :class="toast.type">
+            <i class="bi me-2" :class="{
+                'bi-exclamation-triangle-fill': toast.type === 'error',
+                'bi-check-circle-fill': toast.type === 'success',
+                'bi-info-circle-fill': toast.type === 'info'
+            }"></i>
+            {{ toast.message }}
+        </div>
+    </div>
+</div>
+
+<script>
+const { createApp } = Vue;
+
+createApp({
+    data() {
+        return {
+            threads: [],
+            currentThread: null,
+            messagesCache: {},
+            lastMessageIds: {},
+            newMessage: "",
+            isSending: false,
+            loadingThreads: true,
+            isLoadingMessages: false,
+            toasts: [],
+            threadsInterval: null,
+            messagesInterval: null,
+            sessionId: Date.now().toString(36) + Math.random().toString(36),
+            recentlySentMessages: new Set(),
+            mySenderName: null
+        };
+    },
+    computed: {
+        currentMessages() {
+            if (!this.currentThread) return [];
+            return this.messagesCache[this.currentThread.bookingId] || [];
+        }
+    },
+    async mounted() {
+        await this.loadThreads();
+        this.startThreadsPolling();
+    },
+    beforeUnmount() {
+        this.stopAllPolling();
+    },
+    watch: {
+        currentMessages: {
+            handler() {
+                this.$nextTick(() => {
+                    this.scrollToBottom();
+                });
+            },
+            deep: true
+        }
+    },
+    methods: {
+        showToast(message, type = 'info') {
+            const id = Date.now() + Math.random();
+            this.toasts.push({ id, message, type });
+            setTimeout(() => {
+                this.toasts = this.toasts.filter(t => t.id !== id);
+            }, 4000);
+        },
+
+        async loadThreads() {
+            try {
+                this.loadingThreads = true;
+                const res = await axios.post(
+                    'http://localhost:8080/api/chat/getChatPreview',
+                    {},
+                    { withCredentials: true }
+                );
+                
+                const newThreads = res.data.map(t => ({
+                    ...t,
+                    hasNewMessages: this.checkIfHasNewMessages(t)
+                }));
+                
+                this.threads = newThreads;
+                
+                if (this.threads.length > 0 && !this.currentThread) {
+                    await this.selectThread(this.threads[0]);
+                }
+            } catch (err) {
+                console.error("Errore caricamento threads:", err);
+                this.showToast("Errore caricamento chat", "error");
+            } finally {
+                this.loadingThreads = false;
+            }
+        },
+
+        checkIfHasNewMessages(thread) {
+            const lastKnownId = this.lastMessageIds[thread.bookingId];
+            if (!lastKnownId) return false;
+            
+            const messages = this.messagesCache[thread.bookingId] || [];
+            const lastMessage = messages[messages.length - 1];
+            
+            if (!lastMessage) return false;
+            
+            return lastMessage.messageID !== lastKnownId && !lastMessage.isMine;
+        },
+
+        async selectThread(thread) {
+            this.stopMessagesPolling();
+            
+            this.currentThread = thread;
+            thread.hasNewMessages = false;
+            
+            await this.loadMessages();
+            this.startMessagesPolling();
+        },
+
+        async loadMessages() {
+            if (!this.currentThread) return;
+            
+            try {
+                this.isLoadingMessages = true;
+                const res = await axios.post(
+                    `http://localhost:8080/api/chat/${this.currentThread.bookingId}/DownloadMessages`,
+                    {},
+                    { withCredentials: true }
+                );
+
+                const bookingId = this.currentThread.bookingId;
+                const existingMessages = this.messagesCache[bookingId] || [];
+                const existingIds = new Set(existingMessages.filter(m => !m.sending).map(m => m.messageID));
+                
+                const newMessages = res.data
+                    .filter(m => !existingIds.has(m.messageID))
+                    .map(m => this.formatMessage(m));
+                
+                const sendingMessages = existingMessages.filter(m => m.sending);
+                
+                this.messagesCache[bookingId] = [
+                    ...existingMessages.filter(m => !m.sending),
+                    ...newMessages
+                ].sort((a, b) => a.messageID - b.messageID);
+                
+                sendingMessages.forEach(sm => {
+                    const found = this.messagesCache[bookingId].find(m => 
+                        m.message === sm.message && 
+                        Math.abs(this.parseTime(m.sentTime) - this.parseTime(sm.sentTime)) < 60000
+                    );
+                    
+                    if (!found) {
+                        this.messagesCache[bookingId].push(sm);
+                    }
+                });
+                
+                if (this.messagesCache[bookingId].length > 0) {
+                    const lastMsg = this.messagesCache[bookingId][this.messagesCache[bookingId].length - 1];
+                    this.lastMessageIds[bookingId] = lastMsg.messageID;
+                }
+                
+                await this.setReadReceipt();
+            } catch (err) {
+                console.error("Errore caricamento messaggi:", err);
+                this.showToast("Errore caricamento messaggi", "error");
+            } finally {
+                this.isLoadingMessages = false;
+            }
+        },
+
+        formatMessage(m) {
+            const isMine = this.checkIfMessageIsMine(m);
+            return {
+                id: m.messageID,
+                messageID: m.messageID,
+                message: m.message,
+                sentTime: m.sentTime,
+                isMine: isMine,
+                senderName: m.senderName || 'Utente',
+                sending: false
+            };
+        },
+
+        checkIfMessageIsMine(msg) {
+            console.log('Checking message:', {
+                text: msg.message,
+                sender: msg.senderName,
+                mySenderName: this.mySenderName,
+                isRecent: this.recentlySentMessages.has(msg.message.trim())
+            });
+            
+            // Se abbiamo già identificato il nostro senderName, usiamo quello
+            if (this.mySenderName) {
+                const isMine = msg.senderName === this.mySenderName;
+                console.log('Using saved senderName:', isMine);
+                return isMine;
+            }
+            
+            // Controlla se è un messaggio che abbiamo appena inviato (ultimi 30 secondi)
+            if (this.recentlySentMessages.has(msg.message.trim())) {
+                // Salva il senderName per i prossimi controlli
+                this.mySenderName = msg.senderName;
+                console.log('Found my message! Setting mySenderName to:', this.mySenderName);
+                return true;
+            }
+            
+            return false;
+        },
+
+        parseTime(timeStr) {
+            const [time, date] = timeStr.split(' - ');
+            if (!date) return new Date().getTime();
+            
+            const [day, month, year] = date.split('/');
+            const [hours, minutes] = time.split(':');
+            
+            return new Date(year, month - 1, day, hours, minutes).getTime();
+        },
+
+        async sendMessage() {
+            if (!this.newMessage.trim() || this.isSending) return;
+
+            const msgText = this.newMessage.trim();
+            const bookingId = this.currentThread.bookingId;
+            
+            // Traccia questo messaggio come "mio" per i prossimi 30 secondi
+            console.log('Adding to recently sent:', msgText);
+            this.recentlySentMessages.add(msgText);
+            
+            // Rimuovi dopo 30 secondi per evitare false positives
+            setTimeout(() => {
+                this.recentlySentMessages.delete(msgText);
+                console.log('Removed from recently sent:', msgText);
+            }, 30000);
+            
+            this.newMessage = "";
+            this.isSending = true;
+
+            const tempId = 'temp_' + Date.now() + '_' + Math.random();
+            const tempMsg = {
+                id: tempId,
+                messageID: tempId,
+                message: msgText,
+                sentTime: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
+                isMine: true,
+                senderName: this.mySenderName || 'Tu',
+                sending: true
+            };
+            
+            if (!this.messagesCache[bookingId]) {
+                this.messagesCache[bookingId] = [];
+            }
+            this.messagesCache[bookingId].push(tempMsg);
+
+            try {
+                await axios.post(
+                    `http://localhost:8080/api/chat/${bookingId}/sendMessage`,
+                    msgText,
+                    { 
+                        withCredentials: true,
+                        headers: { 'Content-Type': 'text/plain' }
+                    }
+                );
+
+                setTimeout(async () => {
+                    await this.loadMessages();
+                    
+                    this.messagesCache[bookingId] = this.messagesCache[bookingId].filter(
+                        m => m.id !== tempId
+                    );
+                }, 500);
+
+            } catch (err) {
+                console.error("Errore invio messaggio:", err);
+                this.showToast("Errore durante l'invio", "error");
+                
+                this.messagesCache[bookingId] = this.messagesCache[bookingId].filter(
+                    m => m.id !== tempId
+                );
+                
+                // Rimuovi subito se l'invio è fallito
+                this.recentlySentMessages.delete(msgText);
+            } finally {
+                this.isSending = false;
+            }
+        },
+
+        async setReadReceipt() {
+            if (!this.currentThread) return;
+            
+            try {
+                await axios.get(
+                    `http://localhost:8080/api/chat/${this.currentThread.bookingId}/ReadReceipt`,
+                    { withCredentials: true }
+                );
+            } catch (err) {
+                console.error("Errore read receipt:", err);
+            }
+        },
+
+        scrollToBottom() {
+            const box = this.$refs.messagesBox;
+            if (box) {
+                box.scrollTop = box.scrollHeight;
+            }
+        },
+
+        startThreadsPolling() {
+            this.stopThreadsPolling();
+            this.threadsInterval = setInterval(async () => {
+                if (!this.loadingThreads) {
+                    try {
+                        const res = await axios.post(
+                            'http://localhost:8080/api/chat/getChatPreview',
+                            {},
+                            { withCredentials: true }
+                        );
+                        
+                        this.threads.forEach(thread => {
+                            const updated = res.data.find(r => r.bookingId === thread.bookingId);
+                            if (updated && thread.bookingId !== this.currentThread?.bookingId) {
+                                thread.hasNewMessages = this.checkIfHasNewMessages(updated);
+                            }
+                        });
+                    } catch (err) {
+                        console.error("Errore refresh threads:", err);
+                    }
+                }
+            }, 5000);
+        },
+
+        stopThreadsPolling() {
+            if (this.threadsInterval) {
+                clearInterval(this.threadsInterval);
+                this.threadsInterval = null;
+            }
+        },
+
+        startMessagesPolling() {
+            this.stopMessagesPolling();
+            this.messagesInterval = setInterval(async () => {
+                if (!this.isLoadingMessages && this.currentThread) {
+                    await this.loadMessages();
+                }
+            }, 3000);
+        },
+
+        stopMessagesPolling() {
+            if (this.messagesInterval) {
+                clearInterval(this.messagesInterval);
+                this.messagesInterval = null;
+            }
+        },
+
+        stopAllPolling() {
+            this.stopThreadsPolling();
+            this.stopMessagesPolling();
+        }
+    }
+}).mount("#app");
+</script>
+</body>
+</html>

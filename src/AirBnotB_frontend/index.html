@@ -1,0 +1,1146 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AirBnotB</title>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://unpkg.com/vue-flatpickr-component@4"></script>
+
+  <!-- Bootstrap -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Vue -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+  <style>
+    body {
+      background-color: #f8f9fa;
+    }
+
+    .card {
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+    }
+
+    .hover-card {
+      transition: all 0.3s ease;
+    }
+
+    .hover-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 30px rgba(255, 56, 92, 0.2) !important;
+    }
+
+    .modal.d-block {
+      display: block !important;
+      background-color: rgba(0, 0, 0, 0.5);
+    }
+
+    .cart-badge {
+      position: absolute;
+      top: 0;
+      right: 0;
+      font-size: 0.75rem;
+      background: red;
+      color: white;
+      border-radius: 50%;
+      padding: 0 6px;
+    }
+
+    .date-input-wrapper {
+      position: relative;
+    }
+
+    .booked-dates-info {
+      font-size: 0.85rem;
+      color: #dc3545;
+      margin-top: 0.5rem;
+    }
+
+    input[type="date"]:disabled {
+      background-color: #f8f9fa;
+      cursor: not-allowed;
+    }
+
+    .logo-small {
+      width: 90px;
+      height: auto;
+      object-fit: contain;
+    }
+
+    /* Rating Stars */
+    .star-rating {
+      display: flex;
+      gap: 5px;
+      font-size: 20px;
+    }
+
+    .star {
+      cursor: pointer;
+      color: #ddd;
+      transition: all 0.2s;
+    }
+
+    .star:hover,
+    .star.active {
+      color: #ffc107;
+      transform: scale(1.2);
+    }
+
+    .star:hover ~ .star {
+      color: #ddd;
+    }
+
+    .rating-display {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .rating-value {
+      font-weight: 600;
+      font-size: 18px;
+      color: #333;
+    }
+
+    .rating-stars {
+      color: #ffc107;
+      font-size: 16px;
+    }
+
+    /* Modal Rating */
+    .modal-rating {
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+
+    .review-section {
+      background: #f8f9fa;
+      border-radius: 15px;
+      padding: 20px;
+      margin-top: 20px;
+    }
+
+    .review-textarea {
+      border-radius: 10px;
+      min-height: 120px;
+      resize: vertical;
+    }
+
+    .btn-review {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border: none;
+      color: white;
+      font-weight: 600;
+      padding: 12px 30px;
+      border-radius: 50px;
+      transition: all 0.3s;
+    }
+
+    .btn-review:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-review:disabled {
+      opacity: 0.6;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app">
+
+    <!-- NAVBAR -->
+    <nav class="navbar bg-white shadow-sm py-3">
+      <div class="container-fluid px-4 d-flex align-items-center">
+        <a class="navbar-brand fw-bold fs-3 text-danger" href="index.html">
+          <img src="logo.jpeg" alt="Logo" class="logo-small me-3" />
+        </a>
+        <button class="btn btn-outline-danger rounded-pill" @click="openChat" v-if="loggedInUser">
+          <i class="bi bi-chat-dots"></i> Chat
+        </button>
+
+        <div class="mx-auto w-50">
+          <input type="text" class="form-control rounded-pill shadow-sm" placeholder="Cerca una città..."
+            v-model="search" @keyup.enter="searchCity">
+        </div>
+
+        <div class="d-flex align-items-center gap-3">
+          <div class="dropdown" v-if="loggedInUser">
+            <a class="nav-link fs-5 position-relative" href="#" data-bs-toggle="dropdown">
+              <i class="bi bi-cart3"></i>
+              <span class="cart-badge" v-if="prenotazioni.length">{{ prenotazioni.length }}</span>
+            </a>
+
+            <ul class="dropdown-menu dropdown-menu-end p-3" style="min-width:300px;">
+              <li v-if="prenotazioni.length===0" class="text-center text-muted">Il carrello è vuoto</li>
+              <li v-for="(p,index) in prenotazioni" :key="index" class="mb-2">
+                <div class="d-flex justify-content-between">
+                  <div><strong>{{ p.listingName }}</strong> x {{ p.notti }}</div>
+                  <div>€{{ p.totale }}</div>
+                </div>
+              </li>
+              <li v-if="prenotazioni.length">
+                <button class="btn btn-success w-100 mt-2" @click="vaiPagamentoCarrello">
+                  Paga e prenota
+                </button>
+              </li>
+            </ul>
+          </div>
+
+          <div class="dropdown">
+            <button class="btn btn-light rounded-pill border" data-bs-toggle="dropdown">
+              <i class="bi bi-list me-1"></i>
+              <i class="bi bi-person-circle fs-5"></i>
+            </button>
+
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li v-if="!loggedInUser">
+                <a class="dropdown-item" href="#" @click.prevent="showLogin=true">Login</a>
+              </li>
+              <li v-if="!loggedInUser">
+                <a class="dropdown-item" href="#" @click.prevent="showRegister=true">Registrati</a>
+              </li>
+              <li v-if="loggedInUser">
+                <span class="dropdown-item-text fw-bold">{{ loggedInUser }}</span>
+              </li>
+              <li v-if="loggedInUser">
+                <a class="dropdown-item" href="proprieta.html">
+                  <i class="bi bi-house-door"></i> Le mie proprietà
+                </a>
+              </li>
+              <li v-if="loggedInUser">
+                <hr class="dropdown-divider">
+              </li>
+              <li v-if="loggedInUser">
+                <a class="dropdown-item text-danger" href="#" @click.prevent="logout">
+                  <i class="bi bi-box-arrow-right"></i> Logout
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- CONTENUTO PRINCIPALE -->
+    <div class="container my-5">
+
+      <!-- HERO SECTION -->
+      <div v-if="!search && rentals.length === 0" class="mb-5">
+        <div class="text-center mb-5">
+          <h1 class="display-4 fw-bold mb-3">Trova il tuo prossimo soggiorno</h1>
+          <p class="lead text-muted">Scopri le migliori destinazioni e proprietà selezionate per te</p>
+        </div>
+
+        <div class="mb-5">
+          <h2 class="h3 fw-bold mb-4">🌍 Destinazioni Popolari</h2>
+          <div class="row g-3">
+            <div class="col-md-3" v-for="city in popularCities" :key="city" @click="searchByCity(city)"
+              style="cursor: pointer;">
+              <div class="card border-0 shadow-sm h-100 hover-card">
+                <div class="card-body text-center p-4">
+                  <i class="bi bi-geo-alt-fill fs-1 text-danger mb-3"></i>
+                  <h5 class="fw-bold">{{ city }}</h5>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mb-5">
+          <h2 class="h3 fw-bold mb-4">⭐ Proprietà in Evidenza</h2>
+          <div v-if="loadingFeatured" class="text-center py-5">
+            <div class="spinner-border text-danger"></div>
+          </div>
+          <div v-else class="row g-4">
+            <div class="col-md-6 col-lg-4" v-for="r in featuredRentals" :key="r.rentalID">
+              <div class="card h-100 border-0 rounded-4 shadow-lg">
+                <img v-if="r.imageUrl" :src="r.imageUrl" class="card-img-top rounded-top-4"
+                  style="height:220px; object-fit:cover;">
+                <div v-else class="bg-secondary rounded-top-4" style="height:220px;"></div>
+                <div class="card-body p-4">
+                  <h5 class="fw-bold">{{ r.listingName }}</h5>
+                  
+                  <!-- Rating Display -->
+                  <div v-if="r.avgRating !== null" class="rating-display">
+                    <span class="rating-value">{{ r.avgRating.toFixed(1) }}</span>
+                    <div class="rating-stars">
+                      <i v-for="n in 5" :key="n" class="bi"
+                        :class="n <= Math.round(r.avgRating) ? 'bi-star-fill' : 'bi-star'"></i>
+                    </div>
+                  </div>
+
+                  <span class="badge bg-dark fs-6">€{{ r.pricePerNight }}/notte</span>
+                  <p class="text-muted mt-2">{{ r.city.cityName }}, {{ r.city.province }}</p>
+                  <p class="text-truncate">{{ r.description }}</p>
+                  <button class="btn btn-outline-danger w-100 mt-2" @click="viewRental(r)">
+                    Scopri di più
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LOADING -->
+      <div v-if="loading" class="text-center my-5">
+        <div class="spinner-border fs-3 text-danger"></div>
+      </div>
+
+      <!-- NO RESULTS -->
+      <div v-if="!loading && search && rentals.length===0" class="text-center text-muted fs-4 py-5">
+        <i class="bi bi-search fs-1 d-block mb-3"></i>
+        Nessun risultato per "{{ search }}"
+      </div>
+
+      <!-- RESULTS -->
+      <div class="row g-4" v-if="rentals.length">
+        <div class="col-md-6 col-lg-4" v-for="r in rentals" :key="r.rentalID">
+          <div class="card h-100 border-0 rounded-4 shadow-lg">
+            <img v-if="r.imageUrl" :src="r.imageUrl" class="card-img-top rounded-top-4"
+              style="height:220px; object-fit:cover;">
+            <div v-else class="bg-secondary rounded-top-4" style="height:220px;"></div>
+
+            <div class="card-body p-4">
+              <h5 class="fw-bold">{{ r.listingName }}</h5>
+
+              <!-- Rating Display -->
+              <div v-if="r.avgRating !== null" class="rating-display">
+                <span class="rating-value">{{ r.avgRating.toFixed(1) }}</span>
+                <div class="rating-stars">
+                  <i v-for="n in 5" :key="n" class="bi"
+                    :class="n <= Math.round(r.avgRating) ? 'bi-star-fill' : 'bi-star'"></i>
+                </div>
+              </div>
+
+              <span class="badge bg-dark fs-6">€{{ r.pricePerNight }}/night</span>
+              <p class="text-muted">{{ r.city.cityName }}, {{ r.city.province }}</p>
+              <p>{{ r.description }}</p>
+
+              <div class="date-input-wrapper">
+                <label>Check-in:</label>
+                <input type="text" :id="'datepicker-' + r.rentalID" class="form-control mb-2"
+                  placeholder="Seleziona data" readonly>
+              </div>
+              <div class="input-group mb-3">
+                <span class="input-group-text">Notti</span>
+                <input type="number" min="1" v-model.number="r.notti" @change="validateStay(r)" class="form-control">
+              </div>
+
+              <div v-if="r.conflictMessage" class="alert alert-danger py-2 px-3 small">
+                {{ r.conflictMessage }}
+              </div>
+
+              <div class="d-grid gap-2">
+                <button class="btn btn-success" @click="aggiungiAlCarrello(r)">
+                  Aggiungi al carrello
+                </button>
+                <button class="btn btn-outline-secondary btn-sm" @click="viewReviews(r)">
+                  <i class="bi bi-star me-1"></i>Vedi Recensioni
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- LOGIN MODAL -->
+    <div v-if="showLogin" class="modal d-block">
+      <div class="modal-dialog">
+        <div class="modal-content p-4">
+          <h5>Login</h5>
+          <input type="text" v-model="loginUsername" placeholder="Username" class="form-control mb-2">
+          <input type="password" v-model="loginPassword" placeholder="Password" class="form-control mb-3">
+          <button class="btn btn-dark w-100" @click="performLogin">Login</button>
+          <button class="btn btn-secondary w-100 mt-2" @click="showLogin=false">Chiudi</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- REGISTER MODAL -->
+    <div v-if="showRegister" class="modal d-block">
+      <div class="modal-dialog">
+        <div class="modal-content p-4">
+          <h5>Registrazione</h5>
+          <input type="text" v-model="registerUsername" placeholder="Username" class="form-control mb-2">
+          <input type="password" v-model="registerPassword" placeholder="Password" class="form-control mb-2">
+          <input type="text" v-model="registerName" placeholder="Nome" class="form-control mb-2">
+          <input type="text" v-model="registerSurname" placeholder="Cognome" class="form-control mb-2">
+          <input type="email" v-model="registerEmail" placeholder="Email" class="form-control mb-3">
+          <button class="btn btn-dark w-100" @click="performRegister">Registrati</button>
+          <button class="btn btn-secondary w-100 mt-2" @click="showRegister=false">Chiudi</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGAMENTO MODAL -->
+    <div v-if="showPayment" class="modal d-block">
+      <div class="modal-dialog">
+        <div class="modal-content p-4">
+          <h5>Pagamento</h5>
+          <p>Totale: €{{ pagamentoTotale }}</p>
+          <input type="text" v-model="ccNumber" placeholder="Numero Carta" class="form-control mb-2">
+          <input type="text" v-model="ccName" placeholder="Nome Intestatario" class="form-control mb-2">
+          <input type="text" v-model="ccExp" placeholder="MM/AA" class="form-control mb-2">
+          <input type="text" v-model="ccCVC" placeholder="CVC" class="form-control mb-3">
+          <button class="btn btn-success w-100" @click="confermaPagamento">Paga</button>
+          <button class="btn btn-secondary w-100 mt-2" @click="showPayment=false">Chiudi</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RATING MODAL -->
+    <div v-if="showRating" class="modal d-block">
+      <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content modal-rating">
+          <div class="modal-header bg-gradient text-white"
+            style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+            <h5 class="modal-title">{{ currentRatingRental?.listingName }}</h5>
+            <button type="button" class="btn-close btn-close-white" @click="closeRatingModal"></button>
+          </div>
+          <div class="modal-body p-4">
+
+            <!-- Tabs -->
+            <ul class="nav nav-tabs mb-4" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" :class="{active: ratingTab === 'reviews'}" 
+                        @click="ratingTab = 'reviews'">
+                  <i class="bi bi-chat-left-text me-2"></i>Recensioni
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" :class="{active: ratingTab === 'write'}" 
+                        @click="ratingTab = 'write'">
+                  <i class="bi bi-pencil me-2"></i>Scrivi Recensione
+                </button>
+              </li>
+            </ul>
+
+            <!-- Tab: Reviews List -->
+            <div v-if="ratingTab === 'reviews'" class="tab-pane fade show active">
+              
+              <!-- Loading State -->
+              <div v-if="loadingReviews" class="text-center py-5">
+                <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;"></div>
+                <p class="mt-3 text-muted">Caricamento recensioni...</p>
+              </div>
+
+              <!-- Empty State -->
+              <div v-else-if="currentReviews.length === 0" class="empty-reviews">
+                <i class="bi bi-chat-left-dots"></i>
+                <h5>Nessuna recensione ancora</h5>
+                <p class="text-muted">Sii il primo a recensire questa proprietà!</p>
+              </div>
+
+              <!-- Reviews Content -->
+              <div v-else>
+                <!-- Average Rating Box -->
+                <div class="avg-rating-box">
+                  <h2>{{ avgRatingCurrent.toFixed(1) }}</h2>
+                  <div class="stars">
+                    <i v-for="n in 5" :key="n" class="bi"
+                      :class="n <= Math.round(avgRatingCurrent) ? 'bi-star-fill' : 'bi-star'"></i>
+                  </div>
+                  <p>Basato su {{ currentReviews.length }} {{ currentReviews.length === 1 ? 'recensione' : 'recensioni' }}</p>
+                </div>
+
+                <!-- Reviews List -->
+                <div class="reviews-container">
+                  <div v-for="review in currentReviews" :key="review.ratingID" class="review-item">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                      <div class="d-flex align-items-center gap-3">
+                        <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center"
+                             style="width: 48px; height: 48px; font-size: 20px; font-weight: 600;">
+                          {{ review.userName.charAt(0).toUpperCase() }}
+                        </div>
+                        <div>
+                          <div class="review-user">{{ review.userName }}</div>
+                          <div class="review-stars mt-1">
+                            <i v-for="n in 5" :key="n" class="bi"
+                              :class="n <= review.stars ? 'bi-star-fill' : 'bi-star'"></i>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <p class="review-text">{{ review.evaluation }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tab: Write Review -->
+            <div v-if="ratingTab === 'write'">
+              <!-- Success/Error Messages -->
+              <div v-if="ratingSuccess" class="alert alert-success">
+                <i class="bi bi-check-circle-fill me-2"></i>{{ ratingSuccess }}
+              </div>
+              <div v-if="ratingError" class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>{{ ratingError }}
+              </div>
+
+              <!-- Form -->
+              <div v-if="!hasReviewedCurrent && !ratingSuccess" class="review-section">
+                <h6 class="mb-3">Valuta il tuo soggiorno</h6>
+
+                <!-- Stars -->
+                <div class="star-rating mb-4 justify-content-center">
+                  <i v-for="n in 5" :key="n" class="bi bi-star-fill star"
+                    :class="{ active: n <= selectedStars || n <= hoverStar }" @click="selectStar(n)"
+                    @mouseenter="hoverStar = n" @mouseleave="hoverStar = 0">
+                  </i>
+                </div>
+
+                <!-- Textarea -->
+                <label class="form-label fw-bold">La tua recensione</label>
+                <textarea v-model="reviewText" class="form-control review-textarea"
+                  placeholder="Descrivi la tua esperienza..." :disabled="submittingRating"></textarea>
+
+                <!-- Submit -->
+                <button class="btn btn-review w-100 mt-3" @click="submitReview"
+                  :disabled="!canSubmitReview || submittingRating">
+                  <span v-if="!submittingRating">
+                    <i class="bi bi-send-fill me-2"></i>Invia Recensione
+                  </span>
+                  <span v-else>
+                    <span class="spinner-border spinner-border-sm me-2"></span>
+                    Invio in corso...
+                  </span>
+                </button>
+              </div>
+
+              <!-- Already Reviewed -->
+              <div v-if="hasReviewedCurrent && !ratingSuccess" class="alert alert-info">
+                <i class="bi bi-info-circle-fill me-2"></i>
+                Hai già recensito questa proprietà
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const { createApp } = Vue;
+
+      createApp({
+        data() {
+          return {
+            search: '',
+            rentals: [],
+            loading: false,
+            loadingFeatured: false,
+            featuredRentals: [],
+            popularCities: ['Trieste', 'Venezia', 'Milano', 'Roma'],
+            showLogin: false,
+            showRegister: false,
+            loginUsername: '',
+            loginPassword: '',
+            registerUsername: '',
+            registerPassword: '',
+            registerName: '',
+            registerSurname: '',
+            registerEmail: '',
+            loggedInUser: null,
+            prenotazioni: [],
+            showPayment: false,
+            pagamentoTotale: 0,
+            ccNumber: '',
+            ccName: '',
+            ccExp: '',
+            ccCVC: '',
+            // Rating
+            showRating: false,
+            currentRatingRental: null,
+            selectedStars: 0,
+            hoverStar: 0,
+            reviewText: '',
+            submittingRating: false,
+            ratingSuccess: '',
+            ratingError: '',
+            hasReviewedCurrent: false,
+            completedBookings: [],
+            ratingTab: 'reviews',
+            currentReviews: [],
+            loadingReviews: false,
+            avgRatingCurrent: 0
+          };
+        },
+        computed: {
+          canSubmitReview() {
+            return this.selectedStars > 0 && this.reviewText.trim().length > 0;
+          }
+        },
+        mounted() {
+          this.loadFeaturedRentals();
+        },
+        methods: {
+          openChat() {
+            window.location.href = "chat.html";
+          },
+
+          async loadFeaturedRentals() {
+            this.loadingFeatured = true;
+            try {
+              const cities = ['Trieste', 'Venezia', 'Milano'];
+              let allRentals = [];
+
+              for (const cityName of cities) {
+                try {
+                  const res = await fetch('http://localhost:8080/api/rentals/lookupCities', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: cityName })
+                  });
+
+                  if (res.ok) {
+                    const data = await res.json();
+                    allRentals = [...allRentals, ...data.slice(0, 2)];
+                  }
+                } catch (err) {
+                  console.error(`Errore caricamento ${cityName}:`, err);
+                }
+              }
+
+              for (const r of allRentals) {
+                try {
+                  const imgRes = await fetch(`http://localhost:8080/api/rentals/${r.rentalID}/images`);
+                  if (imgRes.ok) {
+                    const images = await imgRes.json();
+                    r.imageUrl = images.length > 0 ? `http://localhost:8080${images[0]}` : null;
+                  }
+                } catch (err) {
+                  r.imageUrl = null;
+                }
+                
+                // Load rating
+                await this.loadRatingForRental(r);
+                
+                r.notti = 1;
+                r.checkIn = '';
+              }
+
+              this.featuredRentals = allRentals.slice(0, 6);
+            } catch (err) {
+              console.error('Errore caricamento featured:', err);
+            } finally {
+              this.loadingFeatured = false;
+            }
+          },
+
+          async loadRatingForRental(rental) {
+            try {
+              const res = await fetch(`http://localhost:8080/api/ratings/${rental.rentalID}/getRating`);
+              if (res.ok) {
+                const data = await res.json();
+                rental.avgRating = data.rating !== undefined ? data.rating : null;
+              } else {
+                rental.avgRating = null;
+              }
+            } catch (err) {
+              rental.avgRating = null;
+            }
+          },
+
+          searchByCity(cityName) {
+            this.search = cityName;
+            this.searchCity();
+          },
+
+          viewRental(rental) {
+            this.search = rental.city.cityName;
+            this.searchCity();
+          },
+
+          async loadBookedDates(rental) {
+            try {
+              const res = await fetch(`http://localhost:8080/api/rentals/${rental.rentalID}/availability`);
+              if (res.ok) {
+                const data = await res.json();
+                rental.bookedRanges = data.bookedRanges || [];
+              }
+            } catch (err) {
+              console.error('Errore caricamento date:', err);
+              rental.bookedRanges = [];
+            }
+          },
+
+          async initDatePicker(rental) {
+            await this.loadBookedDates(rental);
+
+            const input = document.getElementById('datepicker-' + rental.rentalID);
+            if (!input) return;
+
+            const disabledDates = [];
+
+            rental.bookedRanges.forEach(range => {
+              const start = new Date(range.from);
+              const end = new Date(range.to);
+
+              for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                disabledDates.push(new Date(d));
+              }
+            });
+
+            flatpickr(input, {
+              dateFormat: 'Y-m-d',
+              minDate: 'today',
+              disable: disabledDates,
+              locale: {
+                firstDayOfWeek: 1,
+                weekdays: {
+                  shorthand: ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'],
+                  longhand: ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato']
+                },
+                months: {
+                  shorthand: ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'],
+                  longhand: ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre']
+                }
+              },
+              onChange: (selectedDates, dateStr) => {
+                rental.checkIn = dateStr;
+                this.validateStay(rental);
+              }
+            });
+          },
+
+          formatDate(dateStr) {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+          },
+
+          validateStay(rental) {
+            if (!rental.checkIn || !rental.notti) {
+              rental.conflictMessage = '';
+              return;
+            }
+
+            const checkInDate = new Date(rental.checkIn);
+            const checkOutDate = new Date(checkInDate);
+            checkOutDate.setDate(checkOutDate.getDate() + rental.notti);
+
+            checkInDate.setHours(0, 0, 0, 0);
+            checkOutDate.setHours(0, 0, 0, 0);
+
+            for (const booked of rental.bookedRanges) {
+              const bookedFrom = new Date(booked.from);
+              const bookedTo = new Date(booked.to);
+
+              bookedFrom.setHours(0, 0, 0, 0);
+              bookedTo.setHours(0, 0, 0, 0);
+
+              if (checkInDate < bookedTo && checkOutDate > bookedFrom) {
+                rental.conflictMessage = `⚠️ Date non disponibili: ${this.formatDate(booked.from)} - ${this.formatDate(booked.to)}`;
+                return;
+              }
+            }
+
+            rental.conflictMessage = '';
+          },
+
+          async searchCity() {
+            if (!this.search) return;
+            this.loading = true;
+            this.rentals = [];
+
+            try {
+              const res = await fetch('http://localhost:8080/api/rentals/lookupCities', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: this.search })
+              });
+
+              if (!res.ok) throw new Error("Errore nella ricerca");
+
+              const data = await res.json();
+
+              for (const r of data) {
+                const imgRes = await fetch(`http://localhost:8080/api/rentals/${r.rentalID}/images`);
+                if (imgRes.ok) {
+                  const images = await imgRes.json();
+                  r.imageUrl = images.length > 0 ? `http://localhost:8080${images[0]}` : null;
+                } else {
+                  r.imageUrl = null;
+                }
+                
+                // Load rating
+                await this.loadRatingForRental(r);
+                
+                r.notti = 1;
+                r.checkIn = '';
+                r.bookedRanges = [];
+                r.conflictMessage = '';
+              }
+
+              this.rentals = data;
+
+              await this.$nextTick();
+              this.rentals.forEach(r => this.initDatePicker(r));
+
+            } catch (err) {
+              console.error(err);
+            } finally {
+              this.loading = false;
+            }
+          },
+
+          async performLogin() {
+            try {
+              const res = await fetch("http://localhost:8080/api/auth/login", {
+                method: "POST",
+                credentials: "include",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  username: this.loginUsername,
+                  password: this.loginPassword
+                })
+              });
+
+              const text = await res.text();
+              alert(text);
+
+              if (res.ok) {
+                this.loggedInUser = this.loginUsername;
+                this.showLogin = false;
+                this.loginUsername = '';
+                this.loginPassword = '';
+              }
+            } catch (err) {
+              console.error(err);
+            }
+          },
+
+          async performRegister() {
+            try {
+              const res = await fetch('http://localhost:8080/api/auth/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  username: this.registerUsername,
+                  password: this.registerPassword,
+                  name: this.registerName,
+                  surname: this.registerSurname,
+                  email: this.registerEmail
+                })
+              });
+              const text = await res.text();
+              alert(text);
+              if (res.ok) {
+                this.showRegister = false;
+                this.registerUsername = '';
+                this.registerPassword = '';
+                this.registerName = '';
+                this.registerSurname = '';
+                this.registerEmail = '';
+              }
+            } catch (err) { console.error(err); }
+          },
+
+          logout() {
+            fetch("http://localhost:8080/api/auth/logout", {
+              method: "POST",
+              credentials: "include"
+            });
+            this.loggedInUser = null;
+          },
+
+          aggiungiAlCarrello(rental) {
+            if (!this.loggedInUser) {
+              alert("Devi fare login!");
+              return;
+            }
+            if (!rental.checkIn) {
+              alert("Seleziona check-in!");
+              return;
+            }
+            if (rental.conflictMessage) {
+              alert("Le date selezionate non sono disponibili!");
+              return;
+            }
+
+            const checkInDate = new Date(rental.checkIn);
+            const checkOutDate = new Date(checkInDate);
+            checkOutDate.setDate(checkOutDate.getDate() + rental.notti);
+            const totale = rental.pricePerNight * rental.notti;
+            this.prenotazioni.push({
+              rentalID: rental.rentalID,
+              listingName: rental.listingName,
+              notti: rental.notti,
+              checkIn: rental.checkIn,
+              checkOut: checkOutDate.toISOString().split('T')[0],
+              pricePerNight: rental.pricePerNight,
+              totale
+            });
+            alert(`${rental.listingName} aggiunto al carrello!`);
+          },
+
+          vaiPagamentoCarrello() {
+            if (this.prenotazioni.length === 0) {
+              alert("Carrello vuoto!");
+              return;
+            }
+            this.pagamentoTotale = this.prenotazioni.reduce((sum, p) => sum + p.totale, 0);
+            this.showPayment = true;
+          },
+
+          async confermaPagamento() {
+            if (!this.ccNumber || !this.ccName || !this.ccExp || !this.ccCVC) {
+              alert("Compila tutti i campi!");
+              return;
+            }
+
+            const parts = this.ccExp.split('/');
+            if (parts.length !== 2) {
+              alert("Scadenza non valida (MM/AA)");
+              return;
+            }
+
+            const [mm, yy] = parts;
+            let successCount = 0;
+            const bookedRentals = [];
+
+            for (const p of this.prenotazioni) {
+              const payload = {
+                rental: { rentalID: p.rentalID },
+                date: {
+                  from: new Date(p.checkIn).toISOString(),
+                  to: new Date(p.checkOut).toISOString()
+                },
+                cc: {
+                  number: this.ccNumber,
+                  cardholderName: this.ccName,
+                  mm: parseInt(mm, 10),
+                  yyyy: 2000 + parseInt(yy, 10),
+                  cvv: parseInt(this.ccCVC, 10)
+                }
+              };
+
+              try {
+                const res = await fetch("http://localhost:8080/api/rentals/buyStay", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  credentials: "include",
+                  body: JSON.stringify(payload)
+                });
+
+                if (res.ok) {
+                  successCount++;
+                  bookedRentals.push(p);
+                } else {
+                  const text = await res.text();
+                  console.error(text);
+                }
+              } catch (err) {
+                console.error(err);
+              }
+            }
+
+            alert(`Prenotazioni completate: ${successCount}/${this.prenotazioni.length}`);
+
+            if (successCount > 0) {
+              // Salva le prenotazioni completate per poterle recensire
+              this.completedBookings = [...this.completedBookings, ...bookedRentals];
+              
+              this.prenotazioni = [];
+              this.showPayment = false;
+              this.ccNumber = this.ccName = this.ccExp = this.ccCVC = '';
+
+              // Chiedi se vuole recensire
+              setTimeout(() => {
+                if (confirm('Vuoi lasciare una recensione per le proprietà prenotate?')) {
+                  this.openRatingModal(bookedRentals[0]);
+                }
+              }, 500);
+            }
+          },
+
+          // ========== RATING METHODS ==========
+          
+          async viewReviews(rental) {
+            this.currentRatingRental = rental;
+            this.showRating = true;
+            this.ratingTab = 'reviews';
+            this.selectedStars = 0;
+            this.reviewText = '';
+            this.ratingSuccess = '';
+            this.ratingError = '';
+            this.hasReviewedCurrent = false;
+            
+            await this.loadReviews(rental.rentalID);
+          },
+
+          async loadReviews(rentalID) {
+            this.loadingReviews = true;
+            this.currentReviews = [];
+            
+            try {
+              // Usa l'endpoint esistente per ottenere il rating medio
+              const ratingRes = await fetch(`http://localhost:8080/api/ratings/${rentalID}/getRating`, {
+                credentials: 'include'
+              });
+              
+              if (ratingRes.ok) {
+                const ratingData = await ratingRes.json();
+                console.log('Rating ricevuto:', ratingData);
+                
+                // Se c'è un rating, mostra un messaggio informativo
+                if (ratingData.rating && ratingData.rating > 0) {
+                  this.avgRatingCurrent = ratingData.rating;
+                  // Crea una recensione fittizia per mostrare almeno il rating
+                  this.currentReviews = [{
+                    ratingID: 1,
+                    userName: 'Recensioni verificate',
+                    stars: Math.round(ratingData.rating),
+                    evaluation: `Questa proprietà ha una valutazione media di ${ratingData.rating.toFixed(1)} stelle. Le recensioni dettagliate degli ospiti non sono disponibili al momento, ma il punteggio medio riflette la soddisfazione complessiva dei visitatori.`
+                  }];
+                } else {
+                  this.avgRatingCurrent = 0;
+                  this.currentReviews = [];
+                }
+              } else {
+                console.error('Errore response:', ratingRes.status);
+                this.currentReviews = [];
+                this.avgRatingCurrent = 0;
+              }
+            } catch (err) {
+              console.error('Errore caricamento recensioni:', err);
+              this.currentReviews = [];
+              this.avgRatingCurrent = 0;
+            } finally {
+              this.loadingReviews = false;
+            }
+          },
+          
+          openRatingModal(rental) {
+            this.currentRatingRental = rental;
+            this.showRating = true;
+            this.ratingTab = 'write';
+            this.selectedStars = 0;
+            this.reviewText = '';
+            this.ratingSuccess = '';
+            this.ratingError = '';
+            this.hasReviewedCurrent = false;
+            
+            // Carica anche le recensioni
+            this.loadReviews(rental.rentalID);
+          },
+
+          closeRatingModal() {
+            this.showRating = false;
+            this.currentRatingRental = null;
+            this.selectedStars = 0;
+            this.reviewText = '';
+            this.ratingSuccess = '';
+            this.ratingError = '';
+            this.ratingTab = 'reviews';
+            this.currentReviews = [];
+          },
+
+          selectStar(n) {
+            this.selectedStars = n;
+          },
+
+          async submitReview() {
+            if (!this.canSubmitReview || this.submittingRating) return;
+
+            // Verifica login
+            if (!this.loggedInUser) {
+              this.ratingError = 'Devi effettuare il login per recensire';
+              return;
+            }
+
+            this.submittingRating = true;
+            this.ratingError = '';
+            this.ratingSuccess = '';
+
+            try {
+              const payload = {
+                rentalID: this.currentRatingRental.rentalID,
+                evaluation: this.reviewText.trim(),
+                stars: this.selectedStars
+              };
+
+              console.log('Invio recensione:', payload);
+
+              const res = await fetch('http://localhost:8080/api/ratings', {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              });
+
+              console.log('Response status:', res.status);
+
+              if (res.ok) {
+                this.ratingSuccess = 'Recensione inviata con successo! Grazie per il tuo feedback.';
+                
+                // Aggiorna il rating nella lista
+                const rental = this.rentals.find(r => r.rentalID === this.currentRatingRental.rentalID);
+                if (rental) {
+                  await this.loadRatingForRental(rental);
+                }
+                
+                // Ricarica le recensioni
+                await this.loadReviews(this.currentRatingRental.rentalID);
+                
+                setTimeout(() => {
+                  this.ratingTab = 'reviews';
+                  this.ratingSuccess = '';
+                }, 2000);
+              } else {
+                const errorText = await res.text();
+                console.error('Error response:', errorText);
+                
+                let errorObj;
+                try {
+                  errorObj = JSON.parse(errorText);
+                } catch (e) {
+                  errorObj = { message: errorText };
+                }
+                
+                throw new Error(errorObj.error || errorObj.message || errorText);
+              }
+
+            } catch (err) {
+              console.error('Errore invio recensione:', err);
+              
+              const errorMsg = err.message || 'Errore durante l\'invio della recensione';
+              
+              if (errorMsg.includes('già recensito') || errorMsg.includes('already')) {
+                this.ratingError = 'Hai già recensito questa proprietà';
+                this.hasReviewedCurrent = true;
+              } else if (errorMsg.includes('Unauthorized') || errorMsg.includes('401')) {
+                this.ratingError = 'Devi effettuare il login per recensire';
+              } else if (errorMsg.includes('Internal Server Error')) {
+                this.ratingError = 'Errore del server. Verifica di aver effettuato il login e di aver soggiornato in questa proprietà.';
+              } else {
+                this.ratingError = errorMsg;
+              }
+            } finally {
+              this.submittingRating = false;
+            }
+          }
+        }
+      }).mount('#app');
+    </script>
+</body>
+
+</html>
